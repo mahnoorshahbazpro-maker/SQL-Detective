@@ -1,0 +1,421 @@
+import streamlit as st
+import mysql.connector
+import pandas as pd
+
+# =============================
+# PAGE SETTINGS
+# =============================
+
+st.set_page_config(
+    page_title="SQL Detective",
+    page_icon="🕵️",
+    layout="wide"
+)
+
+# =============================
+# SESSION STATE
+# =============================
+
+if "score" not in st.session_state:
+    st.session_state.score = 0
+
+if "mission" not in st.session_state:
+    st.session_state.mission = 1
+
+if "connection" not in st.session_state:
+    st.session_state.connection = None
+
+
+# =============================
+# HEADER
+# =============================
+
+st.title("🕵️ SQL DETECTIVE")
+st.subheader("A Sales Mystery Has Occurred...")
+
+st.write(
+    "A mysterious revenue problem has been reported. "
+    "Only a skilled SQL detective can uncover the truth."
+)
+
+# =============================
+# SCORE
+# =============================
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric("🏆 Detective Score", st.session_state.score)
+
+with col2:
+    st.metric("🎯 Current Mission", f"{st.session_state.mission}/4")
+
+with col3:
+    st.metric("🔎 Status", "INVESTIGATING")
+
+
+st.divider()
+
+
+# =============================
+# DATABASE CONNECTION
+# =============================
+
+st.sidebar.header("🔐 Detective Database")
+
+mysql_user = st.sidebar.text_input(
+    "MySQL Username",
+    value="root"
+)
+
+mysql_password = st.sidebar.text_input(
+    "MySQL Password",
+    type="password"
+)
+
+mysql_host = st.sidebar.text_input(
+    "Host",
+    value="localhost"
+)
+
+if st.sidebar.button("🔌 Connect to Database"):
+
+    try:
+
+        connection = mysql.connector.connect(
+            host=mysql_host,
+            user=mysql_user,
+            password=mysql_password,
+            database="ecommerce_analysis"
+        )
+
+        st.session_state.connection = connection
+
+        st.sidebar.success("✅ Database Connected!")
+
+    except Exception as e:
+
+        st.sidebar.error("❌ Connection Failed")
+
+        st.sidebar.code(str(e))
+
+
+# =============================
+# CASE FILE
+# =============================
+
+st.markdown("## 🚨 CASE FILE #001")
+
+st.info(
+    "A fictional e-commerce company has discovered an unusual "
+    "sales pattern. Four hidden clues are waiting inside the database."
+)
+
+st.markdown("## 🎯 DETECTIVE MISSIONS")
+
+st.markdown("""
+### 🔎 Mission 1 — The Revenue King
+Which product generated the **highest total revenue**?
+
+### 🏙️ Mission 2 — The Winning City
+Which city generated the **most revenue**?
+
+### 📦 Mission 3 — The Weakest Category
+Which product category generated the **least revenue**?
+
+### 👤 Mission 4 — The Power Customer
+Which customer placed the **most orders**?
+""")
+
+
+st.divider()
+
+
+# =============================
+# DATABASE TABLES
+# =============================
+
+st.markdown("## 🗄️ DATABASE EVIDENCE")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+
+    st.markdown("### 👥 Customers")
+
+    st.write("""
+    • CustomerID  
+    • CustomerName  
+    • City  
+    • Age  
+    • Gender
+    """)
+
+
+with col2:
+
+    st.markdown("### 📦 Products")
+
+    st.write("""
+    • ProductID  
+    • ProductName  
+    • Category  
+    • UnitPrice
+    """)
+
+
+with col3:
+
+    st.markdown("### 🧾 Orders")
+
+    st.write("""
+    • OrderID  
+    • CustomerID  
+    • ProductID  
+    • Quantity
+    """)
+
+
+st.divider()
+
+
+# =============================
+# CURRENT MISSION
+# =============================
+
+st.markdown("## 🕵️ CURRENT INVESTIGATION")
+
+if st.session_state.mission == 1:
+
+    st.warning(
+        "MISSION 1: Find the product with the highest revenue."
+    )
+
+elif st.session_state.mission == 2:
+
+    st.warning(
+        "MISSION 2: Find the city with the highest revenue."
+    )
+
+elif st.session_state.mission == 3:
+
+    st.warning(
+        "MISSION 3: Find the category with the lowest revenue."
+    )
+
+elif st.session_state.mission == 4:
+
+    st.warning(
+        "MISSION 4: Find the customer with the most orders."
+    )
+
+
+# =============================
+# SQL CONSOLE
+# =============================
+
+st.markdown("### 🔎 Detective SQL Console")
+
+query = st.text_area(
+    "Write your SQL investigation:",
+    height=180,
+    placeholder="SELECT ... FROM ... JOIN ..."
+)
+
+
+# =============================
+# RUN INVESTIGATION
+# =============================
+
+if st.button("▶ RUN INVESTIGATION"):
+
+    if st.session_state.connection is None:
+
+        st.error(
+            "⚠️ Connect to the MySQL database first."
+        )
+
+    elif query.strip() == "":
+
+        st.warning(
+            "⚠️ Write a SQL query first."
+        )
+
+    else:
+
+        try:
+
+            result = pd.read_sql(
+                query,
+                st.session_state.connection
+            )
+
+            st.success("🔍 Investigation complete!")
+
+            st.markdown("### 📋 Evidence Found")
+
+            st.dataframe(
+                result,
+                use_container_width=True
+            )
+
+
+            # =============================
+            # MISSION 1 CHECK
+            # =============================
+
+            if st.session_state.mission == 1:
+
+                if (
+                    len(result) >= 1
+                    and len(result.columns) >= 1
+                    and str(result.iloc[0, 0]).lower()
+                    == "laptop"
+                ):
+
+                    st.session_state.score += 25
+
+                    st.success(
+                        "🎉 CASE SOLVED! Laptop is the highest-revenue product. +25 points!"
+                    )
+
+                    st.session_state.mission = 2
+
+                else:
+
+                    st.info(
+                        "🧐 Interesting evidence... "
+                        "But this does not solve Mission 1 yet."
+                    )
+
+
+            # =============================
+            # MISSION 2 CHECK
+            # =============================
+
+            elif st.session_state.mission == 2:
+
+                if (
+                    len(result) >= 1
+                    and len(result.columns) >= 1
+                    and str(result.iloc[0, 0]).lower()
+                    == "lahore"
+                ):
+
+                    st.session_state.score += 25
+
+                    st.success(
+                        "🎉 CASE SOLVED! Lahore generated the most revenue. +25 points!"
+                    )
+
+                    st.session_state.mission = 3
+
+                else:
+
+                    st.info(
+                        "🧐 Good investigation, Detective. "
+                        "But Mission 2 is not solved yet."
+                    )
+
+
+            # =============================
+            # MISSION 3 CHECK
+            # =============================
+
+            elif st.session_state.mission == 3:
+
+                if (
+                    len(result) >= 1
+                    and len(result.columns) >= 1
+                    and str(result.iloc[0, 0]).lower()
+                    == "accessories"
+                ):
+
+                    st.session_state.score += 25
+
+                    st.success(
+                        "🎉 CASE SOLVED! Accessories is the weakest category. +25 points!"
+                    )
+
+                    st.session_state.mission = 4
+
+                else:
+
+                    st.info(
+                        "🧐 The evidence is not enough yet. "
+                        "Keep investigating."
+                    )
+
+
+            # =============================
+            # MISSION 4 CHECK
+            # =============================
+
+            elif st.session_state.mission == 4:
+
+                if (
+                    len(result) >= 1
+                    and len(result.columns) >= 1
+                    and str(result.iloc[0, 0]).lower()
+                    == "ali khan"
+                ):
+
+                    st.session_state.score += 25
+
+                    st.success(
+                        "🎉 FINAL CASE SOLVED! Ali Khan placed the most orders. +25 points!"
+                    )
+
+                    st.balloons()
+
+                    st.markdown(
+                        "## 🏆 CASE CLOSED"
+                    )
+
+                    st.write(
+                        f"Final Detective Score: {st.session_state.score}/100"
+                    )
+
+                else:
+
+                    st.info(
+                        "🧐 Almost there, Detective. "
+                        "Find the customer with the most orders."
+                    )
+
+
+        except Exception as e:
+
+            st.error("❌ SQL Error")
+
+            st.code(str(e))
+
+
+# =============================
+# FOOTER
+# =============================
+# =============================
+# HINT SYSTEM
+# =============================
+
+if st.session_state.mission == 1:
+    hint_text = "💡 Hint: You need to connect Orders with Products and calculate Quantity × UnitPrice."
+
+elif st.session_state.mission == 2:
+    hint_text = "💡 Hint: You need Customers + Orders + Products. Group the revenue by City."
+
+elif st.session_state.mission == 3:
+    hint_text = "💡 Hint: Group revenue by Category and sort from lowest to highest."
+
+else:
+    hint_text = "💡 Hint: Count OrderID for each customer and sort from highest to lowest."
+
+
+if st.button("💡 GET A HINT"):
+
+    st.info(hint_text)
+st.divider()
+
+st.caption(
+    "SQL Detective | MySQL + Python + Streamlit"
+)
